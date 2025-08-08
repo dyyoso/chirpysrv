@@ -18,17 +18,19 @@ func appHandler(path string) http.Handler {
 func main() {
 	port := "8080"
 	rootFilepath := "."
-
 	cfg := NewAPIConfig()
+	mux := http.NewServeMux()
+
 	mw := func(h http.Handler) http.Handler {
 		return cfg.MiddlewareMetricsInc(h)
 	}
 
-	mux := http.NewServeMux()
 	mux.Handle("/app/", mw(appHandler(rootFilepath)))
-	mux.Handle("GET /health", mw(http.HandlerFunc(healthHandler)))
-	mux.Handle("GET /metrics", cfg.HandlerMetrics())
-	mux.Handle("POST /reset", cfg.HandlerReset())
+
+	// API endpoint
+	mux.Handle("GET /api/health", mw(http.HandlerFunc(healthHandler)))
+	mux.Handle("GET /api/metrics", cfg.HandlerMetrics())
+	mux.Handle("POST /api/reset", cfg.HandlerReset())
 
 	srv := &http.Server{Addr: ":" + port, Handler: mux}
 

@@ -15,7 +15,6 @@ import (
 
 func userHandler(cfg *apiConfig) http.Handler {
 	h := func(w http.ResponseWriter, r *http.Request) {
-
 		type CreateUserRequest struct {
 			Email string `json:"email"`
 		}
@@ -55,7 +54,6 @@ func appHandler(path string) http.Handler {
 
 func chirpHandler(cfg *apiConfig) http.Handler {
 	h := func(w http.ResponseWriter, r *http.Request) {
-
 		type CreateChirpRequest struct {
 			Body   string    `json:"body"`
 			UserID uuid.UUID `json:"user_id"`
@@ -112,8 +110,7 @@ func chirpHandler(cfg *apiConfig) http.Handler {
 func updateUserHandler(cfg *apiConfig) http.Handler {
 	h := func(w http.ResponseWriter, r *http.Request) {
 		type requestUpdateUser struct {
-			ID    uuid.UUID `json:"id"`
-			Email string    `json:"email"`
+			Email string `json:"email"`
 		}
 
 		var params requestUpdateUser
@@ -127,20 +124,27 @@ func updateUserHandler(cfg *apiConfig) http.Handler {
 			return
 		}
 
+		parsedID, err := uuid.Parse(r.PathValue("id"))
+		if err != nil {
+			log.Printf("error parsing: %v", err)
+			responseWithError(w, http.StatusBadRequest, "Something went wrong")
+			return
+		}
+
 		updatedUser, err := cfg.db.UpdateUser(
 			r.Context(),
 			database.UpdateUserParams{
 				Email: params.Email,
-				ID:    params.ID,
+				ID:    parsedID,
 			},
 		)
 		if err != nil {
 			log.Printf("error updating user: %v", err)
-			responseWithError(w, http.StatusOK, "Something went wrong")
+			responseWithError(w, http.StatusBadRequest, "Something went wrong")
 			return
 		}
 
-		responseWithJSON(w, http.StatusCreated, updatedUser)
+		responseWithJSON(w, http.StatusOK, updatedUser)
 	}
 
 	return http.HandlerFunc(h)
@@ -149,12 +153,12 @@ func updateUserHandler(cfg *apiConfig) http.Handler {
 func updateChirpHandler(cfg *apiConfig) http.Handler {
 	h := func(w http.ResponseWriter, r *http.Request) {
 		type requestUpdateChirp struct {
-			ID   uuid.UUID `json:"id"`
-			Body string    `json:"body"`
+			Body string `json:"body"`
 		}
 
 		var params requestUpdateChirp
 		defer r.Body.Close()
+
 		dec := json.NewDecoder(r.Body)
 		dec.DisallowUnknownFields()
 		if err := dec.Decode(&params); err != nil {
@@ -182,11 +186,18 @@ func updateChirpHandler(cfg *apiConfig) http.Handler {
 		}
 		str := strings.Join(spl, " ")
 
+		parsedID, err := uuid.Parse(r.PathValue("id"))
+		if err != nil {
+			log.Printf("error parsing: %v", err)
+			responseWithError(w, http.StatusBadRequest, "Something went wrong")
+			return
+		}
+
 		updatedChirp, err := cfg.db.UpdateChirp(
 			r.Context(),
 			database.UpdateChirpParams{
 				Body: str,
-				ID:   params.ID,
+				ID:   parsedID,
 			},
 		)
 		if err != nil {
@@ -247,10 +258,10 @@ func main() {
 	mux.Handle("GET /api/health", mw(http.HandlerFunc(healthHandler)))
 
 	mux.Handle("POST /api/chirps", mw(chirpHandler(cfg)))
-	mux.Handle("POST /api/chirps/update", mw(updateChirpHandler(cfg)))
-
 	mux.Handle("POST /api/users", mw(userHandler(cfg)))
-	mux.Handle("POST /api/users/update", mw(updateUserHandler(cfg)))
+
+	mux.Handle("PATCH /api/users/{id}", mw(updateUserHandler(cfg)))
+	mux.Handle("PATCH /api/chirps/{id}", mw(updateChirpHandler(cfg)))
 
 	// Admin endpoint
 	mux.Handle("GET /admin/metrics", cfg.HandlerMetrics())

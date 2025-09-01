@@ -13,17 +13,13 @@ import (
 	"github.com/prchop/chirpysrv/internal/database"
 )
 
-type CreateUserRequest struct {
-	Email string `json:"email"`
-}
-
-type CreateChirpRequest struct {
-	Body   string    `json:"body"`
-	UserID uuid.UUID `json:"user_id"`
-}
-
 func userHandler(cfg *apiConfig) http.Handler {
 	h := func(w http.ResponseWriter, r *http.Request) {
+
+		type CreateUserRequest struct {
+			Email string `json:"email"`
+		}
+
 		var params CreateUserRequest
 		defer r.Body.Close()
 
@@ -39,6 +35,7 @@ func userHandler(cfg *apiConfig) http.Handler {
 		if err != nil {
 			log.Printf("error creating user: %v", err)
 			responseWithError(w, http.StatusBadRequest, "Something went wrong")
+			return
 		}
 
 		responseWithJSON(w, http.StatusCreated, dbUser)
@@ -56,8 +53,14 @@ func appHandler(path string) http.Handler {
 	return http.StripPrefix("/app", http.FileServer(http.Dir(path)))
 }
 
-func chirpsHandler(cfg *apiConfig) http.Handler {
+func chirpHandler(cfg *apiConfig) http.Handler {
 	h := func(w http.ResponseWriter, r *http.Request) {
+
+		type CreateChirpRequest struct {
+			Body   string    `json:"body"`
+			UserID uuid.UUID `json:"user_id"`
+		}
+
 		var params CreateChirpRequest
 		defer r.Body.Close()
 
@@ -86,18 +89,115 @@ func chirpsHandler(cfg *apiConfig) http.Handler {
 				spl[i] = "****"
 			}
 		}
-		strBody := strings.Join(spl, " ")
+		str := strings.Join(spl, " ")
 
-		chirpsCreate, err := cfg.db.CreateChirp(r.Context(),
-			database.CreateChirpParams{Body: strBody, UserID: params.UserID})
+		dbChirp, err := cfg.db.CreateChirp(
+			r.Context(),
+			database.CreateChirpParams{
+				Body:   str,
+				UserID: params.UserID,
+			},
+		)
 		if err != nil {
 			log.Printf("error creating chirps: %v", err)
 			responseWithError(w, http.StatusBadRequest, "Something went wrong")
 			return
 		}
 
-		responseWithJSON(w, http.StatusCreated, chirpsCreate)
+		responseWithJSON(w, http.StatusCreated, dbChirp)
 	}
+	return http.HandlerFunc(h)
+}
+
+func updateUserHandler(cfg *apiConfig) http.Handler {
+	h := func(w http.ResponseWriter, r *http.Request) {
+		type requestUpdateUser struct {
+			ID    uuid.UUID `json:"id"`
+			Email string    `json:"email"`
+		}
+
+		var params requestUpdateUser
+		defer r.Body.Close()
+
+		dec := json.NewDecoder(r.Body)
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&params); err != nil {
+			log.Printf("error decoding: %v", err)
+			responseWithError(w, http.StatusBadRequest, "Something went wrong")
+			return
+		}
+
+		updatedUser, err := cfg.db.UpdateUser(
+			r.Context(),
+			database.UpdateUserParams{
+				Email: params.Email,
+				ID:    params.ID,
+			},
+		)
+		if err != nil {
+			log.Printf("error updating user: %v", err)
+			responseWithError(w, http.StatusOK, "Something went wrong")
+			return
+		}
+
+		responseWithJSON(w, http.StatusCreated, updatedUser)
+	}
+
+	return http.HandlerFunc(h)
+}
+
+func updateChirpHandler(cfg *apiConfig) http.Handler {
+	h := func(w http.ResponseWriter, r *http.Request) {
+		type requestUpdateChirp struct {
+			ID   uuid.UUID `json:"id"`
+			Body string    `json:"body"`
+		}
+
+		var params requestUpdateChirp
+		defer r.Body.Close()
+		dec := json.NewDecoder(r.Body)
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&params); err != nil {
+			log.Printf("error decoding: %v", err)
+			responseWithError(w, http.StatusBadRequest, "Something went wrong")
+			return
+		}
+
+		if len(params.Body) == 0 {
+			responseWithError(w, http.StatusBadRequest, "Empty request body")
+			return
+		}
+
+		if len(params.Body) > 140 {
+			responseWithError(w, http.StatusBadRequest, "Chirp is too long")
+			return
+		}
+
+		spl := strings.Split(params.Body, " ")
+		for i := range spl {
+			s := strings.ToLower(spl[i])
+			if s == "kerfuffle" || s == "sharbert" || s == "fornax" {
+				spl[i] = "****"
+			}
+		}
+		str := strings.Join(spl, " ")
+
+		updatedChirp, err := cfg.db.UpdateChirp(
+			r.Context(),
+			database.UpdateChirpParams{
+				Body: str,
+				ID:   params.ID,
+			},
+		)
+		if err != nil {
+			log.Printf("error updating chrip: %v", err)
+			responseWithError(w, http.StatusBadRequest, "Something went wrong")
+			return
+		}
+
+		responseWithJSON(w, http.StatusOK, updatedChirp)
+	}
+
 	return http.HandlerFunc(h)
 }
 
@@ -106,8 +206,7 @@ func responseWithJSON(w http.ResponseWriter, code int, payload any) {
 	if err != nil {
 		log.Printf("error marshaling: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"error":"Something went wrong"}`))
-		// w.Write([]byte(`{"error":"Internal server error"}`))
+		w.Write([]byte(`{"error":"Internal server error"}`))
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -136,19 +235,22 @@ func main() {
 
 	dbQueries := database.New(db)
 	cfg := NewAPIConfig(dbQueries)
-	// cfg = &apiConfig{fsrvHits: atomic.Int32{}, db: dbQueries}
 
 	mw := func(h http.Handler) http.Handler {
 		return cfg.MiddlewareMetricsInc(h)
 	}
 
-	// User endpoint
+	// App endpoint
 	mux.Handle("/app/", mw(appHandler(rootFilepath)))
 
 	// API endpoint
 	mux.Handle("GET /api/health", mw(http.HandlerFunc(healthHandler)))
-	mux.Handle("POST /api/chirps", mw(chirpsHandler(cfg)))
+
+	mux.Handle("POST /api/chirps", mw(chirpHandler(cfg)))
+	mux.Handle("POST /api/chirps/update", mw(updateChirpHandler(cfg)))
+
 	mux.Handle("POST /api/users", mw(userHandler(cfg)))
+	mux.Handle("POST /api/users/update", mw(updateUserHandler(cfg)))
 
 	// Admin endpoint
 	mux.Handle("GET /admin/metrics", cfg.HandlerMetrics())
@@ -156,6 +258,6 @@ func main() {
 
 	srv := &http.Server{Addr: ":" + port, Handler: mux}
 
-	log.Printf("Chripy server start at http://localhost:%s", port)
+	log.Printf("Chirpy server start at http://localhost:%s", port)
 	log.Fatal(srv.ListenAndServe())
 }

@@ -61,3 +61,50 @@ func (q *Queries) DeleteAllUsers(ctx context.Context) error {
 	_, err := q.db.ExecContext(ctx, deleteAllUsers)
 	return err
 }
+
+const updateChirp = `-- name: UpdateChirp :one
+UPDATE chrips SET (updated_at, body) = (NOW(), $1)
+WHERE id = $2
+RETURNING id, created_at, updated_at, body, user_id
+`
+
+type UpdateChirpParams struct {
+	Body string
+	ID   uuid.UUID
+}
+
+func (q *Queries) UpdateChirp(ctx context.Context, arg UpdateChirpParams) (Chrip, error) {
+	row := q.db.QueryRowContext(ctx, updateChirp, arg.Body, arg.ID)
+	var i Chrip
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Body,
+		&i.UserID,
+	)
+	return i, err
+}
+
+const updateUser = `-- name: UpdateUser :one
+UPDATE users SET (updated_at, email) = (NOW(), $1)
+WHERE id = $2
+RETURNING id, created_at, updated_at, email
+`
+
+type UpdateUserParams struct {
+	Email string
+	ID    uuid.UUID
+}
+
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateUser, arg.Email, arg.ID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Email,
+	)
+	return i, err
+}

@@ -18,5 +18,10 @@ SELECT id, email, updated_at, created_at
 FROM users
 WHERE id = $1;
 
+-- name: DeleteUserByID :one
+DELETE FROM users
+WHERE id = $1
+RETURNING *;
+
 -- name: DeleteAllUsers :exec
 DELETE FROM users;

@@ -85,7 +85,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow
 const getUsers = `-- name: GetUsers :many
 SELECT id, email, updated_at, created_at
 FROM users
-ORDER BY id
+ORDER BY created_at ASC
 `
 
 type GetUsersRow struct {

@@ -11,7 +11,7 @@ RETURNING *;
 -- name: GetUsers :many
 SELECT id, email, updated_at, created_at
 FROM users
-ORDER BY id;
+ORDER BY created_at ASC;
 
 -- name: GetUserByID :one
 SELECT id, email, updated_at, created_at

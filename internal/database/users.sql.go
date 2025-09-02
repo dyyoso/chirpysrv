@@ -64,10 +64,10 @@ WHERE id = $1
 `
 
 type GetUserByIDRow struct {
-	ID        uuid.UUID
-	Email     string
-	UpdatedAt time.Time
-	CreatedAt time.Time
+	ID        uuid.UUID `json:"id"`
+	Email     string    `json:"email"`
+	UpdatedAt time.Time `json:"updated_at"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow, error) {
@@ -89,10 +89,10 @@ ORDER BY id
 `
 
 type GetUsersRow struct {
-	ID        uuid.UUID
-	Email     string
-	UpdatedAt time.Time
-	CreatedAt time.Time
+	ID        uuid.UUID `json:"id"`
+	Email     string    `json:"email"`
+	UpdatedAt time.Time `json:"updated_at"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 func (q *Queries) GetUsers(ctx context.Context) ([]GetUsersRow, error) {
@@ -130,8 +130,8 @@ RETURNING id, created_at, updated_at, email
 `
 
 type UpdateUserParams struct {
-	Email string
-	ID    uuid.UUID
+	Email string    `json:"email"`
+	ID    uuid.UUID `json:"id"`
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {

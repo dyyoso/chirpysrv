@@ -19,8 +19,8 @@ RETURNING id, created_at, updated_at, body, user_id
 `
 
 type CreateChirpParams struct {
-	Body   string
-	UserID uuid.UUID
+	Body   string    `json:"body"`
+	UserID uuid.UUID `json:"user_id"`
 }
 
 func (q *Queries) CreateChirp(ctx context.Context, arg CreateChirpParams) (Chirp, error) {
@@ -71,11 +71,11 @@ WHERE id = $1
 `
 
 type GetChirpByIDRow struct {
-	ID        uuid.UUID
-	Body      string
-	UpdatedAt time.Time
-	CreatedAt time.Time
-	UserID    uuid.UUID
+	ID        uuid.UUID `json:"id"`
+	Body      string    `json:"body"`
+	UpdatedAt time.Time `json:"updated_at"`
+	CreatedAt time.Time `json:"created_at"`
+	UserID    uuid.UUID `json:"user_id"`
 }
 
 func (q *Queries) GetChirpByID(ctx context.Context, id uuid.UUID) (GetChirpByIDRow, error) {
@@ -98,11 +98,11 @@ ORDER BY id
 `
 
 type GetChirpsRow struct {
-	ID        uuid.UUID
-	Body      string
-	UpdatedAt time.Time
-	CreatedAt time.Time
-	UserID    uuid.UUID
+	ID        uuid.UUID `json:"id"`
+	Body      string    `json:"body"`
+	UpdatedAt time.Time `json:"updated_at"`
+	CreatedAt time.Time `json:"created_at"`
+	UserID    uuid.UUID `json:"user_id"`
 }
 
 func (q *Queries) GetChirps(ctx context.Context) ([]GetChirpsRow, error) {
@@ -141,8 +141,8 @@ RETURNING id, created_at, updated_at, body, user_id
 `
 
 type UpdateChirpParams struct {
-	Body string
-	ID   uuid.UUID
+	Body string    `json:"body"`
+	ID   uuid.UUID `json:"id"`
 }
 
 func (q *Queries) UpdateChirp(ctx context.Context, arg UpdateChirpParams) (Chirp, error) {

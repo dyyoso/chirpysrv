@@ -26,11 +26,11 @@
 
 #### Tech Stack
 
-* [Go](https://go.dev/doc/) (`net/http`)
+* [Go](https://pkg.go.dev/net/http) (`net/http`)
 * [PostgreSQL](https://www.postgresql.org/)
 * [SQLC](https://docs.sqlc.dev/en/latest/index.html)
 
-#### How to Run
+#### Run the App
 
 ```bash
 make
@@ -42,5 +42,5 @@ or
 go build -o <name> && ./<name>
 ```
 
-#### Catatan
+#### Note
 This project is intended as an example of basic REST API learning with Go, not for live production.

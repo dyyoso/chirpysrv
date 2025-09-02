@@ -11,30 +11,6 @@ import (
 	"github.com/google/uuid"
 )
 
-const createChirp = `-- name: CreateChirp :one
-INSERT INTO chirps (id, created_at, updated_at, body, user_id)
-VALUES (gen_random_uuid(), NOW(), NOW(), $1, $2)
-RETURNING id, created_at, updated_at, body, user_id
-`
-
-type CreateChirpParams struct {
-	Body   string
-	UserID uuid.UUID
-}
-
-func (q *Queries) CreateChirp(ctx context.Context, arg CreateChirpParams) (Chirp, error) {
-	row := q.db.QueryRowContext(ctx, createChirp, arg.Body, arg.UserID)
-	var i Chirp
-	err := row.Scan(
-		&i.ID,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.Body,
-		&i.UserID,
-	)
-	return i, err
-}
-
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (id, created_at, updated_at, email)
 VALUES (gen_random_uuid(), NOW(), NOW(), $1)
@@ -60,30 +36,6 @@ DELETE FROM users
 func (q *Queries) DeleteAllUsers(ctx context.Context) error {
 	_, err := q.db.ExecContext(ctx, deleteAllUsers)
 	return err
-}
-
-const updateChirp = `-- name: UpdateChirp :one
-UPDATE chirps SET (updated_at, body) = (NOW(), $1)
-WHERE id = $2
-RETURNING id, created_at, updated_at, body, user_id
-`
-
-type UpdateChirpParams struct {
-	Body string
-	ID   uuid.UUID
-}
-
-func (q *Queries) UpdateChirp(ctx context.Context, arg UpdateChirpParams) (Chirp, error) {
-	row := q.db.QueryRowContext(ctx, updateChirp, arg.Body, arg.ID)
-	var i Chirp
-	err := row.Scan(
-		&i.ID,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.Body,
-		&i.UserID,
-	)
-	return i, err
 }
 
 const updateUser = `-- name: UpdateUser :one

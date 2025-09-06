@@ -9,13 +9,11 @@ WHERE id = $2
 RETURNING *;
 
 -- name: GetChirps :many
-SELECT id, body, updated_at, created_at, user_id
-FROM chirps
+SELECT * FROM chirps
 ORDER BY user_id ASC;
 
 -- name: GetChirpByID :one
-SELECT id, body, updated_at, created_at, user_id
-FROM chirps
+SELECT * FROM chirps
 WHERE id = $1;
 
 -- name: DeleteChirpByID :one

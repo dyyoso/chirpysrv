@@ -7,7 +7,6 @@ package database
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -19,8 +18,8 @@ RETURNING id, created_at, updated_at, body, user_id
 `
 
 type CreateChirpParams struct {
-	Body   string    `json:"body"`
-	UserID uuid.UUID `json:"user_id"`
+	Body   string
+	UserID uuid.UUID
 }
 
 func (q *Queries) CreateChirp(ctx context.Context, arg CreateChirpParams) (Chirp, error) {
@@ -65,60 +64,42 @@ func (q *Queries) DeleteChirpByID(ctx context.Context, id uuid.UUID) (Chirp, err
 }
 
 const getChirpByID = `-- name: GetChirpByID :one
-SELECT id, body, updated_at, created_at, user_id
-FROM chirps
+SELECT id, created_at, updated_at, body, user_id FROM chirps
 WHERE id = $1
 `
 
-type GetChirpByIDRow struct {
-	ID        uuid.UUID `json:"id"`
-	Body      string    `json:"body"`
-	UpdatedAt time.Time `json:"updated_at"`
-	CreatedAt time.Time `json:"created_at"`
-	UserID    uuid.UUID `json:"user_id"`
-}
-
-func (q *Queries) GetChirpByID(ctx context.Context, id uuid.UUID) (GetChirpByIDRow, error) {
+func (q *Queries) GetChirpByID(ctx context.Context, id uuid.UUID) (Chirp, error) {
 	row := q.db.QueryRowContext(ctx, getChirpByID, id)
-	var i GetChirpByIDRow
+	var i Chirp
 	err := row.Scan(
 		&i.ID,
-		&i.Body,
-		&i.UpdatedAt,
 		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Body,
 		&i.UserID,
 	)
 	return i, err
 }
 
 const getChirps = `-- name: GetChirps :many
-SELECT id, body, updated_at, created_at, user_id
-FROM chirps
+SELECT id, created_at, updated_at, body, user_id FROM chirps
 ORDER BY user_id ASC
 `
 
-type GetChirpsRow struct {
-	ID        uuid.UUID `json:"id"`
-	Body      string    `json:"body"`
-	UpdatedAt time.Time `json:"updated_at"`
-	CreatedAt time.Time `json:"created_at"`
-	UserID    uuid.UUID `json:"user_id"`
-}
-
-func (q *Queries) GetChirps(ctx context.Context) ([]GetChirpsRow, error) {
+func (q *Queries) GetChirps(ctx context.Context) ([]Chirp, error) {
 	rows, err := q.db.QueryContext(ctx, getChirps)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetChirpsRow
+	var items []Chirp
 	for rows.Next() {
-		var i GetChirpsRow
+		var i Chirp
 		if err := rows.Scan(
 			&i.ID,
-			&i.Body,
-			&i.UpdatedAt,
 			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Body,
 			&i.UserID,
 		); err != nil {
 			return nil, err
@@ -141,8 +122,8 @@ RETURNING id, created_at, updated_at, body, user_id
 `
 
 type UpdateChirpParams struct {
-	Body string    `json:"body"`
-	ID   uuid.UUID `json:"id"`
+	Body string
+	ID   uuid.UUID
 }
 
 func (q *Queries) UpdateChirp(ctx context.Context, arg UpdateChirpParams) (Chirp, error) {

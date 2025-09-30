@@ -22,7 +22,7 @@ func appHandler(path string) http.Handler {
 	return http.StripPrefix("/app", http.FileServer(http.Dir(path)))
 }
 
-func refreshHandler(cfg *apiConfig) http.Handler {
+func refreshHandler(app *App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		reftoken, err := auth.GetBearerToken(r.Header)
 		if err != nil {
@@ -31,14 +31,14 @@ func refreshHandler(cfg *apiConfig) http.Handler {
 			return
 		}
 
-		dbUser, err := cfg.db.GetUserByRefreshToken(r.Context(), reftoken)
+		dbUser, err := app.db.GetUserByRefreshToken(r.Context(), reftoken)
 		if err != nil {
 			log.Printf("error retrieving user with refresh token: %v", err)
 			responseWithError(w, http.StatusUnauthorized, "Token didn't exist or already expired")
 			return
 		}
 
-		token, err := auth.MakeJWT(dbUser.ID, cfg.secret, time.Hour)
+		token, err := auth.MakeJWT(dbUser.ID, app.config.JWTSecret, time.Hour)
 		if err != nil {
 			log.Printf("error generating access token: %v", err)
 			responseWithError(w, http.StatusBadRequest, "Something went wrong")
@@ -53,7 +53,7 @@ func refreshHandler(cfg *apiConfig) http.Handler {
 	})
 }
 
-func revokeHandler(cfg *apiConfig) http.Handler {
+func revokeHandler(app *App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		reftoken, err := auth.GetBearerToken(r.Header)
 		if err != nil {
@@ -62,7 +62,7 @@ func revokeHandler(cfg *apiConfig) http.Handler {
 			return
 		}
 
-		if _, err = cfg.db.RevokeRefreshToken(r.Context(), reftoken); err != nil {
+		if _, err = app.db.RevokeRefreshToken(r.Context(), reftoken); err != nil {
 			log.Printf("error revoking refresh token: %v", err)
 			responseWithError(w, http.StatusBadRequest, "Token didn't exist or already revoked")
 			return
@@ -107,7 +107,7 @@ func newAuthResponse(user UserResponse, token, reftoken string) AuthResponse {
 	}
 }
 
-func userHandler(cfg *apiConfig) http.Handler {
+func userHandler(app *App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var params UserRequest
 		defer r.Body.Close()
@@ -132,7 +132,7 @@ func userHandler(cfg *apiConfig) http.Handler {
 			return
 		}
 
-		dbUser, err := cfg.db.CreateUser(r.Context(),
+		dbUser, err := app.db.CreateUser(r.Context(),
 			database.CreateUserParams{
 				Email:          params.Email,
 				HashedPassword: password,
@@ -149,7 +149,7 @@ func userHandler(cfg *apiConfig) http.Handler {
 	})
 }
 
-func userLoginHandler(cfg *apiConfig) http.Handler {
+func userLoginHandler(app *App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var params UserRequest
 		defer r.Body.Close()
@@ -162,7 +162,7 @@ func userLoginHandler(cfg *apiConfig) http.Handler {
 			return
 		}
 
-		dbUser, err := cfg.db.GetUserByEmail(r.Context(), params.Email)
+		dbUser, err := app.db.GetUserByEmail(r.Context(), params.Email)
 		if err != nil {
 			log.Printf("error retrieving user: %v", err)
 			responseWithError(w, http.StatusUnauthorized, "Incorrect email or password")
@@ -176,7 +176,7 @@ func userLoginHandler(cfg *apiConfig) http.Handler {
 		}
 
 		// token should expire after 1 hour
-		token, err := auth.MakeJWT(dbUser.ID, cfg.secret, time.Hour)
+		token, err := auth.MakeJWT(dbUser.ID, app.config.JWTSecret, time.Hour)
 		if err != nil {
 			log.Printf("error generating access token: %v", err)
 			responseWithError(w, http.StatusBadRequest, "Something went wrong")
@@ -190,7 +190,7 @@ func userLoginHandler(cfg *apiConfig) http.Handler {
 			return
 		}
 
-		dbRefToken, err := cfg.db.CreateRefreshToken(
+		dbRefToken, err := app.db.CreateRefreshToken(
 			r.Context(),
 			database.CreateRefreshTokenParams{
 				Token:     reftoken,
@@ -210,7 +210,7 @@ func userLoginHandler(cfg *apiConfig) http.Handler {
 	})
 }
 
-func updateUserHandler(cfg *apiConfig) http.Handler {
+func updateUserHandler(app *App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		type requestUpdateUser struct {
 			Email string `json:"email"`
@@ -233,7 +233,7 @@ func updateUserHandler(cfg *apiConfig) http.Handler {
 			return
 		}
 
-		dbUser, err := cfg.db.UpdateUser(r.Context(),
+		dbUser, err := app.db.UpdateUser(r.Context(),
 			database.UpdateUserParams{
 				Email: params.Email,
 				ID:    parsedID,
@@ -250,9 +250,9 @@ func updateUserHandler(cfg *apiConfig) http.Handler {
 	})
 }
 
-func getUsersHandler(cfg *apiConfig) http.Handler {
+func getUsersHandler(app *App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		dbUsers, err := cfg.db.GetUsers(r.Context())
+		dbUsers, err := app.db.GetUsers(r.Context())
 		if err != nil {
 			log.Printf("error retrieving chirps: %v", err)
 			responseWithError(w, http.StatusBadRequest, "Something went wrong")
@@ -272,7 +272,7 @@ func getUsersHandler(cfg *apiConfig) http.Handler {
 	})
 }
 
-func getUserByIDHandler(cfg *apiConfig) http.Handler {
+func getUserByIDHandler(app *App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		userID, err := uuid.Parse(r.PathValue("id"))
 		if err != nil {
@@ -281,7 +281,7 @@ func getUserByIDHandler(cfg *apiConfig) http.Handler {
 			return
 		}
 
-		dbUser, err := cfg.db.GetUserByID(r.Context(), userID)
+		dbUser, err := app.db.GetUserByID(r.Context(), userID)
 		if err != nil {
 			log.Printf("error retrieving chirp: %v", err)
 			responseWithError(w, http.StatusBadRequest, "Something went wrong")
@@ -293,7 +293,7 @@ func getUserByIDHandler(cfg *apiConfig) http.Handler {
 	})
 }
 
-func deleteUserByID(cfg *apiConfig) http.Handler {
+func deleteUserByID(app *App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		userID, err := uuid.Parse(r.PathValue("id"))
 		if err != nil {
@@ -302,7 +302,7 @@ func deleteUserByID(cfg *apiConfig) http.Handler {
 			return
 		}
 
-		dbUser, err := cfg.db.DeleteUserByID(r.Context(), userID)
+		dbUser, err := app.db.DeleteUserByID(r.Context(), userID)
 		if err != nil {
 			log.Printf("error deleting user: %v", err)
 			responseWithError(w, http.StatusBadRequest, "Something went wrong")
@@ -335,7 +335,7 @@ func newChirpResponse(chirp database.Chirp) ChirpResponse {
 	}
 }
 
-func chirpHandler(cfg *apiConfig) http.Handler {
+func chirpHandler(app *App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		type CreateChirpRequest struct {
 			Body   string    `json:"body"`
@@ -359,7 +359,7 @@ func chirpHandler(cfg *apiConfig) http.Handler {
 			return
 		}
 
-		validID, err := auth.ValidateJWT(token, cfg.secret)
+		validID, err := auth.ValidateJWT(token, app.config.JWTSecret)
 		if err != nil {
 			log.Printf("error validating token: %v", err)
 			responseWithError(w, http.StatusUnauthorized, "Something went wrong")
@@ -390,7 +390,7 @@ func chirpHandler(cfg *apiConfig) http.Handler {
 		}
 		str := strings.Join(spl, " ")
 
-		dbChirp, err := cfg.db.CreateChirp(r.Context(),
+		dbChirp, err := app.db.CreateChirp(r.Context(),
 			database.CreateChirpParams{
 				Body:   str,
 				UserID: params.UserID,
@@ -407,7 +407,7 @@ func chirpHandler(cfg *apiConfig) http.Handler {
 	})
 }
 
-func updateChirpHandler(cfg *apiConfig) http.Handler {
+func updateChirpHandler(app *App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		type requestUpdateChirp struct {
 			Body string `json:"body"`
@@ -449,7 +449,7 @@ func updateChirpHandler(cfg *apiConfig) http.Handler {
 			return
 		}
 
-		dbChirp, err := cfg.db.UpdateChirp(
+		dbChirp, err := app.db.UpdateChirp(
 			r.Context(),
 			database.UpdateChirpParams{
 				Body: str,
@@ -467,9 +467,9 @@ func updateChirpHandler(cfg *apiConfig) http.Handler {
 	})
 }
 
-func getChirpsHandler(cfg *apiConfig) http.Handler {
+func getChirpsHandler(app *App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		dbChirps, err := cfg.db.GetChirps(r.Context())
+		dbChirps, err := app.db.GetChirps(r.Context())
 		if err != nil {
 			log.Printf("error retrieving chirps: %v", err)
 			responseWithError(w, http.StatusBadRequest, "Something went wrong")
@@ -489,7 +489,7 @@ func getChirpsHandler(cfg *apiConfig) http.Handler {
 	})
 }
 
-func getChripByIDHandler(cfg *apiConfig) http.Handler {
+func getChripByIDHandler(app *App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		chirpID, err := uuid.Parse(r.PathValue("id"))
 		if err != nil {
@@ -498,7 +498,7 @@ func getChripByIDHandler(cfg *apiConfig) http.Handler {
 			return
 		}
 
-		dbChirp, err := cfg.db.GetChirpByID(r.Context(), chirpID)
+		dbChirp, err := app.db.GetChirpByID(r.Context(), chirpID)
 		if err != nil {
 			log.Printf("error retrieving chirp: %v", err)
 			responseWithError(w, http.StatusBadRequest, "Something went wrong")
@@ -510,7 +510,7 @@ func getChripByIDHandler(cfg *apiConfig) http.Handler {
 	})
 }
 
-func deleteChirpByID(cfg *apiConfig) http.Handler {
+func deleteChirpByID(app *App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		chirpID, err := uuid.Parse(r.PathValue("id"))
 		if err != nil {
@@ -519,7 +519,7 @@ func deleteChirpByID(cfg *apiConfig) http.Handler {
 			return
 		}
 
-		dbChirp, err := cfg.db.DeleteChirpByID(r.Context(), chirpID)
+		dbChirp, err := app.db.DeleteChirpByID(r.Context(), chirpID)
 		if err != nil {
 			log.Printf("error deleting user: %v", err)
 			responseWithError(w, http.StatusBadRequest, "Something went wrong")

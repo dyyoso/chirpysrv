@@ -1,68 +1,64 @@
 package main
 
 import (
-	"database/sql"
 	"log"
 	"net/http"
-	"os"
-	"sync/atomic"
 
+	"github.com/caarlos0/env"
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
-	"github.com/prchop/chirpysrv/internal/database"
 )
 
 func main() {
-	port := ":8080"
-	rootFilepath := "."
-	mux := http.NewServeMux()
-	secret := os.Getenv("JWT_SECRET")
-
-	dbURI := os.Getenv("GOOSE_DBSTRING")
-	dbDriver := os.Getenv("GOOSE_DRIVER")
-	db, err := sql.Open(dbDriver, dbURI)
+	err := godotenv.Load()
 	if err != nil {
-		log.Print(err)
+		log.Fatal("Error loading .env file", err)
 	}
 
-	dbQueries := database.New(db)
+	cfg := Config{}
+	err = env.Parse(&cfg)
+	if err != nil {
+		log.Fatal("Error parsing config", err)
+	}
 
-	cfg := &apiConfig{
-		srvHits: atomic.Int32{},
-		db:      dbQueries,
-		secret:  secret,
+	port := cfg.Port
+	mux := http.NewServeMux()
+	app, err := NewApp(cfg)
+	if err != nil {
+		log.Fatal("Error starting app", err)
 	}
 
 	mw := func(h http.Handler) http.Handler {
-		return cfg.MiddlewareMetricsInc(h)
+		return app.MiddlewareMetricsInc(h)
 	}
 
-	mux.Handle("/app/", mw(appHandler(rootFilepath)))
+	mux.Handle("/app/", mw(appHandler(".")))
 
 	mux.Handle("GET /api/health", mw(http.HandlerFunc(healthHandler)))
 
-	mux.Handle("GET /api/users", mw(getUsersHandler(cfg)))
-	mux.Handle("GET /api/users/{id}", mw(getUserByIDHandler(cfg)))
+	mux.Handle("GET /api/users", mw(getUsersHandler(app)))
+	mux.Handle("GET /api/users/{id}", mw(getUserByIDHandler(app)))
 
-	mux.Handle("GET /api/chirps", mw(getChirpsHandler(cfg)))
-	mux.Handle("GET /api/chirps/{id}", mw(getChripByIDHandler(cfg)))
+	mux.Handle("GET /api/chirps", mw(getChirpsHandler(app)))
+	mux.Handle("GET /api/chirps/{id}", mw(getChripByIDHandler(app)))
 
-	mux.Handle("POST /api/users", mw(userHandler(cfg)))
-	mux.Handle("POST /api/login", mw(userLoginHandler(cfg)))
-	mux.Handle("POST /api/chirps", mw(chirpHandler(cfg)))
-	mux.Handle("POST /api/refresh", mw(refreshHandler(cfg)))
-	mux.Handle("POST /api/revoke", mw(revokeHandler(cfg)))
+	mux.Handle("POST /api/users", mw(userHandler(app)))
+	mux.Handle("POST /api/login", mw(userLoginHandler(app)))
+	mux.Handle("POST /api/chirps", mw(chirpHandler(app)))
+	mux.Handle("POST /api/refresh", mw(refreshHandler(app)))
+	mux.Handle("POST /api/revoke", mw(revokeHandler(app)))
 
-	mux.Handle("PATCH /api/users/{id}", mw(updateUserHandler(cfg)))
-	mux.Handle("PATCH /api/chirps/{id}", mw(updateChirpHandler(cfg)))
+	mux.Handle("PATCH /api/users/{id}", mw(updateUserHandler(app)))
+	mux.Handle("PATCH /api/chirps/{id}", mw(updateChirpHandler(app)))
 
-	mux.Handle("DELETE /api/users/{id}", mw(deleteUserByID(cfg)))
-	mux.Handle("DELETE /api/chirps/{id}", mw(deleteChirpByID(cfg)))
+	mux.Handle("DELETE /api/users/{id}", mw(deleteUserByID(app)))
+	mux.Handle("DELETE /api/chirps/{id}", mw(deleteChirpByID(app)))
 
-	mux.Handle("GET /admin/metrics", cfg.HandlerMetrics())
-	mux.Handle("POST /admin/reset", cfg.HandlerReset())
+	mux.Handle("GET /admin/metrics", app.HandlerMetrics())
+	mux.Handle("POST /admin/reset", app.HandlerReset())
 
-	srv := &http.Server{Addr: port, Handler: mux}
+	srv := &http.Server{Addr: ":" + port, Handler: mux}
 
-	log.Printf("Chirpy server start at http://localhost%s", port)
+	log.Printf("Chirpy server start at http://localhost:%s", port)
 	log.Fatal(srv.ListenAndServe())
 }

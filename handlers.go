@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"reflect"
 	"strings"
 	"time"
 
@@ -73,8 +74,26 @@ func revokeHandler(app *App) http.Handler {
 }
 
 type UserRequest struct {
-	Password string `json:"password,omitempty"`
-	Email    string `json:"email,omitempty"`
+	Password string `json:"password" required:"true"`
+	Email    string `json:"email" required:"true"`
+}
+
+func validate(s any) map[string]string {
+	errors := make(map[string]string)
+
+	t := reflect.TypeOf(s)
+	for i := range t.NumField() {
+		field := t.Field(i)
+		if field.Tag.Get("required") == "true" {
+			value := reflect.ValueOf(s).Field(i).String()
+			if value == "" {
+				key := strings.ToLower(field.Name)
+				errors[key] = key + " is required"
+			}
+		}
+	}
+
+	return errors
 }
 
 type UserResponse struct {
@@ -120,8 +139,9 @@ func userHandler(app *App) http.Handler {
 			return
 		}
 
-		if len(params.Password) == 0 || len(params.Email) == 0 {
-			responseWithError(w, http.StatusBadRequest, "Empty field")
+		errors := validate(params)
+		if len(errors) > 0 {
+			responseWithValidationError(w, http.StatusBadRequest, "user validation failed", errors)
 			return
 		}
 
@@ -159,6 +179,12 @@ func userLoginHandler(app *App) http.Handler {
 		if err := dec.Decode(&params); err != nil {
 			log.Printf("error decoding: %v", err)
 			responseWithError(w, http.StatusBadRequest, "Something went wrong")
+			return
+		}
+
+		errors := validate(params)
+		if len(errors) > 0 {
+			responseWithValidationError(w, http.StatusBadRequest, "user validation failed", errors)
 			return
 		}
 
@@ -223,6 +249,11 @@ func updateUserHandler(app *App) http.Handler {
 		if err := dec.Decode(&params); err != nil {
 			log.Printf("error decoding: %v", err)
 			responseWithError(w, http.StatusBadRequest, "Something went wrong")
+			return
+		}
+
+		if params.Email == "" {
+			responseWithError(w, http.StatusBadRequest, "email is required")
 			return
 		}
 
@@ -552,6 +583,17 @@ func responseWithError(w http.ResponseWriter, code int, msg string) {
 	responseWithJSON(w, code, struct {
 		Error string `json:"error"`
 	}{
-		Error: msg},
-	)
+		Error: msg,
+	})
+}
+
+func responseWithValidationError(w http.ResponseWriter, code int,
+	msg string, errors map[string]string) {
+	responseWithJSON(w, code, struct {
+		Message string            `json:"message"`
+		Errors  map[string]string `json:"errors"`
+	}{
+		Message: msg,
+		Errors:  errors,
+	})
 }

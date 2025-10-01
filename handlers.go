@@ -239,7 +239,7 @@ func userLoginHandler(app *App) http.Handler {
 func updateUserHandler(app *App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		type requestUpdateUser struct {
-			Email string `json:"email"`
+			Email string `json:"email" required:"true"`
 		}
 		var params requestUpdateUser
 		defer r.Body.Close()
@@ -252,8 +252,9 @@ func updateUserHandler(app *App) http.Handler {
 			return
 		}
 
-		if params.Email == "" {
-			responseWithError(w, http.StatusBadRequest, "email is required")
+		errors := validate(params)
+		if len(errors) > 0 {
+			responseWithValidationError(w, http.StatusBadRequest, "user validation failed", errors)
 			return
 		}
 

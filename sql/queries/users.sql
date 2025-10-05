@@ -4,8 +4,8 @@ VALUES (gen_random_uuid(), NOW(), NOW(), $1, $2)
 RETURNING *;
 
 -- name: UpdateUser :one
-UPDATE users SET (updated_at, email) = (NOW(), $1)
-WHERE id = $2
+UPDATE users SET (updated_at, email, hashed_password) = (NOW(), $1, $2)
+WHERE id = $3
 RETURNING *;
 
 -- name: GetUsers :many

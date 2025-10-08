@@ -8,6 +8,11 @@ UPDATE users SET (updated_at, email, hashed_password) = (NOW(), $1, $2)
 WHERE id = $3
 RETURNING *;
 
+-- name: UpgradeUser :one
+UPDATE users SET (updated_at, is_chirpy_red) = (NOW(), $1)
+WHERE id = $2
+RETURNING *;
+
 -- name: GetUsers :many
 SELECT * FROM users
 ORDER BY created_at ASC;

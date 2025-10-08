@@ -69,7 +69,7 @@ func revokeHandler(app *App) http.Handler {
 			return
 		}
 
-		w.WriteHeader(http.StatusNoContent)
+		responseWithNoContent(w, http.StatusNoContent)
 	})
 }
 
@@ -97,18 +97,20 @@ func validate(s any) map[string]string {
 }
 
 type UserResponse struct {
-	ID        uuid.UUID `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Email     string    `json:"email"`
+	ID          uuid.UUID `json:"id"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	Email       string    `json:"email"`
+	IsChirpyRed bool      `json:"is_chirpy_red"`
 }
 
 func newUserResponse(user database.User) UserResponse {
 	return UserResponse{
-		ID:        user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
+		ID:          user.ID,
+		CreatedAt:   user.CreatedAt,
+		UpdatedAt:   user.UpdatedAt,
+		Email:       user.Email,
+		IsChirpyRed: user.IsChirpyRed,
 	}
 }
 
@@ -368,6 +370,44 @@ func deleteUserByID(app *App) http.Handler {
 	})
 }
 
+func upgradeUserHandler(app *App) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		type requestUpgradeUser struct {
+			Event string `json:"event"`
+			Data  struct {
+				UserID uuid.UUID `json:"user_id"`
+			} `json:"data"`
+		}
+		var params requestUpgradeUser
+		defer r.Body.Close()
+
+		dec := json.NewDecoder(r.Body)
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&params); err != nil {
+			log.Printf("error decoding params: %v", err)
+			responseWithError(w, http.StatusBadRequest, "Something went wrong")
+			return
+		}
+
+		if params.Event != "user.upgrade" {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		_, err := app.db.UpgradeUser(r.Context(), database.UpgradeUserParams{
+			IsChirpyRed: true,
+			ID:          params.Data.UserID,
+		})
+		if err != nil {
+			log.Printf("error upgrading user: %v", err)
+			responseWithError(w, http.StatusNotFound, "User not found")
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+	})
+}
+
 type ChirpResponse struct {
 	ID        uuid.UUID `json:"id"`
 	CreatedAt time.Time `json:"created_at"`
@@ -602,7 +642,7 @@ func deleteChirpByID(app *App) http.Handler {
 			return
 		}
 
-		w.WriteHeader(http.StatusNoContent)
+		responseWithNoContent(w, http.StatusNoContent)
 	})
 }
 
@@ -637,4 +677,9 @@ func responseWithValidationError(w http.ResponseWriter, code int,
 		Message: msg,
 		Errors:  errors,
 	})
+}
+
+func responseWithNoContent(w http.ResponseWriter, code int) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.WriteHeader(code)
 }

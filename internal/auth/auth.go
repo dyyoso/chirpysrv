@@ -28,10 +28,30 @@ func CheckPasswordHash(password, hash string) error {
 	return nil
 }
 
-func GetBearerToken(headers http.Header) (string, error) {
+func getAuthorization(headers http.Header) (string, error) {
 	auth := headers.Get("Authorization")
-	if auth == "" {
-		return auth, errors.New("authorization header is not found")
+	if auth != "" {
+		return auth, nil
+	}
+	return "", errors.New("authorization header is not found")
+}
+
+func GetAPIKey(headers http.Header) (string, error) {
+	auth, err := getAuthorization(headers)
+	if err != nil {
+		return auth, err
+	}
+	key := strings.TrimSpace(auth[len("ApiKey"):])
+	if key != "" {
+		return key, nil
+	}
+	return "", errors.New("api key is empty")
+}
+
+func GetBearerToken(headers http.Header) (string, error) {
+	auth, err := getAuthorization(headers)
+	if err != nil {
+		return auth, err
 	}
 	token := strings.TrimSpace(auth[len("Bearer"):])
 	if token != "" {

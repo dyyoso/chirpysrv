@@ -2,6 +2,7 @@ package auth_test
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"testing"
@@ -151,6 +152,7 @@ func TestGetBearerToken(t *testing.T) {
 				if err == nil {
 					t.Fatalf("want error but got none")
 				}
+				log.Println(err)
 			}
 		})
 	}
@@ -173,6 +175,39 @@ func TestMakeRefreshToken(t *testing.T) {
 			}
 			if len(got) != 64 {
 				t.Fatalf("expected length 32, got: %d", len(got))
+			}
+		})
+	}
+}
+
+func TestGetAPIKey(t *testing.T) {
+	tests := []struct {
+		name    string
+		headers http.Header
+		want    string
+		wantErr bool
+	}{
+		{"valid api key 1", http.Header{"Authorization": []string{"ApiKey apikey12345"}}, "apikey12345", false},
+		{"valid api key 2", http.Header{"Authorization": []string{"ApiKey apikey54321"}}, "apikey54321", false},
+		{"empty apikey", http.Header{"Authorization": []string{"ApiKey "}}, "", true},
+		{"authorization header not found", http.Header{"Authorization": []string{""}}, "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := auth.GetAPIKey(tt.headers)
+			if !tt.wantErr {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if got != tt.want {
+					t.Fatalf("got: %v, want: %v", got, tt.want)
+				}
+			} else {
+				if err == nil {
+					t.Fatalf("want error but got none")
+				}
+				log.Println(err)
 			}
 		})
 	}

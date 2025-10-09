@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -582,6 +583,62 @@ func getChirpsHandler(app *App) http.Handler {
 		chirps := make([]ChirpResponse, len(dbChirps))
 		for i, c := range dbChirps {
 			chirps[i] = newChirpResponse(c)
+		}
+
+		if sort := r.URL.Query().Get("sort"); sort != "desc" {
+			// Sorts ASCENDING (older items first)
+			slices.SortStableFunc(chirps, func(a, b ChirpResponse) int {
+				switch {
+				case a.CreatedAt.Before(b.CreatedAt):
+					return -1
+				case a.CreatedAt.After(b.CreatedAt):
+					return 1
+				default:
+					return 0
+				}
+			})
+		} else {
+			// Sorts DESCENDING (newer items first)
+			slices.SortStableFunc(chirps, func(a, b ChirpResponse) int {
+				switch {
+				case a.CreatedAt.After(b.CreatedAt):
+					return -1
+				case a.CreatedAt.Before(b.CreatedAt):
+					return 1
+				default:
+					return 0
+				}
+			})
+		}
+
+		if id := r.URL.Query().Get("author_id"); id != "" {
+			authorID, err := uuid.Parse(id)
+			if err != nil {
+				log.Printf("error parsing author id: %v", err)
+				responseWithError(w, http.StatusBadRequest, "Something went wrong")
+				return
+			}
+
+			filter := func(s []ChirpResponse, f func(ChirpResponse) bool) []ChirpResponse {
+				result := []ChirpResponse{}
+				for _, v := range s {
+					if f(v) {
+						result = append(result, v)
+					}
+				}
+				return result
+			}
+
+			filteredChirps := filter(chirps, func(cr ChirpResponse) bool {
+				return cr.UserID == authorID
+			})
+
+			responseWithJSON(w, http.StatusOK, struct {
+				Chrips []ChirpResponse `json:"chirps"`
+			}{
+				Chrips: filteredChirps,
+			})
+			return
 		}
 
 		responseWithJSON(w, http.StatusOK, struct {

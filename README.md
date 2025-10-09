@@ -4,18 +4,20 @@
 #### Feature
 
 * CRUD endpoints for `users` and `chrips`.
-* Supports `GET`, `POST`, `PATCH`, and `DELETE` operations.
+* Filter `chrips` by author_id.
+* Sort `chrips` by ASC/DESC.
+* Supports `GET`, `POST`, `PUT`, `PATCH`, and `DELETE` operations.
 * Response in JSON format.
 
 #### Endpoints
 
-* `GET /app/` →  a simple html serve.
+* `GET /app/` →  a simple html page to serve.
 * `GET /api/health` →  checking the health of API.
 * `GET /api/users` →  Retrieve all users.
 * `GET /api/users/{id}` →  Retrieve users by ID.
 * `GET /api/chirps` →  Retrieve all chirps, filter chirp using `author_id=<user_id>` query param, and sort by asc (default) or desc by passing `sort=asc|desc` query param.
 * `GET /api/chirps/{id}` →  Retrieve chirp by chrip ID.
-* `POST /api/login` →  Login with email and password. Generate an accdess token (exp. 1 hours) and refresh token (exp. 60 days).
+* `POST /api/login` →  Login with email and password. Generate an access token (exp. 1 hours) and refresh token (exp. 60 days).
 * `POST /api/users` →  Create a new user with a JSON request body (e.g., email, password).
 * `POST /api/chirps` →  Create a new chirp with a JSON request body (e.g., body, user_id) and require a valid access token in Authorization Header.
 * `POST /api/refresh` →  Refresh access token.

@@ -31,7 +31,7 @@ func main() {
 		return app.MiddlewareMetricsInc(h)
 	}
 
-	mux.Handle("/app/", mw(appHandler(".")))
+	mux.Handle("/app/", mw(appHandler("./web")))
 
 	mux.Handle("GET /api/health", mw(http.HandlerFunc(healthHandler)))
 

@@ -57,7 +57,7 @@ func TestCreateToken(t *testing.T) {
 
 			parts := strings.Split(got, ".")
 			if len(parts) != tt.want {
-				t.Fatalf(`got token: %d, want: %v`, len(got), tt.want)
+				t.Errorf(`got token: %d, want: %v`, len(got), tt.want)
 			}
 		})
 	}
@@ -93,7 +93,7 @@ func TestValidateToken(t *testing.T) {
 			time.Sleep(tt.delay)
 
 			if got != tt.want {
-				t.Fatalf(`got: %s, want: %v`, got, tt.want)
+				t.Errorf(`got: %s, want: %v`, got, tt.want)
 			}
 		})
 	}
@@ -119,7 +119,7 @@ func TestCheckValidateError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := auth.ValidateJWT(tt.token, tt.secret)
 			if err.Error() != tt.wantErr.Error() {
-				t.Fatalf(`got: %q, want: %q`, err.Error(), tt.wantErr.Error())
+				t.Errorf(`got: %q, want: %q`, err.Error(), tt.wantErr.Error())
 			}
 		})
 	}
@@ -143,14 +143,14 @@ func TestGetBearerToken(t *testing.T) {
 			got, err := auth.GetBearerToken(tt.headers)
 			if !tt.wantErr {
 				if err != nil {
-					t.Fatalf("unexpected error: %v", err)
+					t.Errorf("unexpected error: %v", err)
 				}
 				if got != tt.want {
-					t.Fatalf("got: %v, want: %v", got, tt.want)
+					t.Errorf("got: %v, want: %v", got, tt.want)
 				}
 			} else {
 				if err == nil {
-					t.Fatalf("want error but got none")
+					t.Errorf("want error but got none")
 				}
 				log.Println(err)
 			}
@@ -171,10 +171,10 @@ func TestMakeRefreshToken(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := auth.MakeRefreshToken()
 			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
+				t.Errorf("unexpected error: %v", err)
 			}
 			if len(got) != 64 {
-				t.Fatalf("expected length 32, got: %d", len(got))
+				t.Errorf("expected length 32, got: %d", len(got))
 			}
 		})
 	}
@@ -198,14 +198,14 @@ func TestGetAPIKey(t *testing.T) {
 			got, err := auth.GetAPIKey(tt.headers)
 			if !tt.wantErr {
 				if err != nil {
-					t.Fatalf("unexpected error: %v", err)
+					t.Errorf("unexpected error: %v", err)
 				}
 				if got != tt.want {
-					t.Fatalf("got: %v, want: %v", got, tt.want)
+					t.Errorf("got: %v, want: %v", got, tt.want)
 				}
 			} else {
 				if err == nil {
-					t.Fatalf("want error but got none")
+					t.Errorf("want error but got none")
 				}
 				log.Println(err)
 			}

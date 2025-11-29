@@ -356,18 +356,13 @@ func deleteUserByID(app *App) http.Handler {
 			return
 		}
 
-		dbUser, err := app.db.DeleteUserByID(r.Context(), userID)
-		if err != nil {
+		if _, err = app.db.DeleteUserByID(r.Context(), userID); err != nil {
 			log.Printf("error deleting user: %v", err)
 			responseWithError(w, http.StatusBadRequest, "Something went wrong")
 			return
 		}
 
-		responseWithJSON(w, http.StatusOK, struct {
-			DeletedUser UserResponse `json:"deleted_user"`
-		}{
-			DeletedUser: newUserResponse(dbUser),
-		})
+		responseWithNoContent(w, http.StatusNoContent)
 	})
 }
 

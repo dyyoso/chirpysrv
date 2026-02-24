@@ -5,16 +5,10 @@ import (
 	"net/http"
 
 	"github.com/caarlos0/env/v11"
-	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file", err)
-	}
-
 	cfg, err := env.ParseAs[Config]()
 	if err != nil {
 		log.Fatal("Error parsing config", err)
